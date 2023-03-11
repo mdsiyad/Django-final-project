@@ -123,15 +123,14 @@ def enroll(request, course_id):
          # Redirect to show_exam_result with the submission id
 def submit(request, course_id):
     if request.method == "POST":
-        course = get_object_or_404(Course, pk=course_id)
         user = request.user
-        # if user.id is not None:
+        course = get_object_or_404(Course, pk=course_id)
+        enrollment = Enrollment.objects.get(user=user, course=course)
+        submission = Submission.objects.create(enrollment=enrollment)
         choices = extract_answers(request)
-        enrollment = Enrollment.objects.filter(user=user, course=course)
-        Submission.objects.create(enrollment=enrollment,choices=choices)
+        submission.choices.set(choices)
+        return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=(course_id, submission.id,)))
  
-        # submission.choices = submitted_anwsers
-        return  redirect("onlinecourse:show_exam_result")
         # return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course_id,)))
     else:
         return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course_id,)))
@@ -156,16 +155,27 @@ def extract_answers(request):
         # For each selected choice, check if it is a correct answer or not
         # Calculate the total score
 def show_exam_result(request, course_id, submission_id):
+    
     course = get_object_or_404(Course, pk=course_id)
-    submission  = Submission.objects.get(submission_id)
-    grade = 0
-    choices = submission.choices
-    for choice in choices:
-        if choice.is_correct
-    return  redirect("onlinecourse:exam_result")
-    return HttpResponseRedirect(reverse(viewname='onlinecourse:exam_result', args=(grade,)))
+    subm = get_object_or_404(Submission, pk=submission_id)
 
+    total_score = 0
+    quiz_score = 0
+    for choice in subm.choices.all():
+        mark = get_object_or_404(Question, pk=choice.question_id)
+        quiz_score += mark.grade
+        if choice.is_correct:
+            total_score += mark.grade
+    
+    grade = total_score / quiz_score * 100
+    print(grade)
 
+    context = {
+        "course": course,
+        "selected_ids": subm.choices.all(),
+        "grade": grade
+    }
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
 
 
 
